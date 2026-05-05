@@ -17,6 +17,7 @@ import (
 	"code.gitea.io/gitea/modules/indexer"
 	"code.gitea.io/gitea/modules/indexer/code/bleve"
 	"code.gitea.io/gitea/modules/indexer/code/elasticsearch"
+	"code.gitea.io/gitea/modules/indexer/code/solr"
 	"code.gitea.io/gitea/modules/indexer/code/internal"
 	"code.gitea.io/gitea/modules/log"
 	"code.gitea.io/gitea/modules/process"
@@ -117,7 +118,7 @@ func Init() {
 
 	// Create the Queue
 	switch setting.Indexer.RepoType {
-	case "bleve", "elasticsearch":
+	case "bleve", "elasticsearch", "solr":
 		handler := func(items ...*internal.IndexerData) (unhandled []*internal.IndexerData) {
 			indexer := *globalIndexer.Load()
 			for _, indexerData := range items {
@@ -166,7 +167,7 @@ func Init() {
 				close(waitChannel)
 				log.Fatal("PID: %d Unable to initialize the bleve Repository Indexer at path: %s Error: %v", os.Getpid(), setting.Indexer.RepoPath, err)
 			}
-		case "elasticsearch":
+		case "elasticsearch", "solr":
 			log.Info("PID: %d Initializing Repository Indexer at: %s", os.Getpid(), util.SanitizeCredentialURLs(setting.Indexer.RepoConnStr))
 			defer func() {
 				if err := recover(); err != nil {
@@ -177,12 +178,15 @@ func Init() {
 			}()
 
 			rIndexer = elasticsearch.NewIndexer(setting.Indexer.RepoConnStr, setting.Indexer.RepoIndexerName)
+			if setting.Indexer.RepoType == "solr" {
+				rIndexer = solr.NewIndexer(setting.Indexer.RepoConnStr, setting.Indexer.RepoIndexerName)
+			}
 			existed, err = rIndexer.Init(ctx)
 			if err != nil {
 				cancel()
 				(*globalIndexer.Load()).Close()
 				close(waitChannel)
-				log.Fatal("PID: %d Unable to initialize the elasticsearch Repository Indexer connstr: %s Error: %v", os.Getpid(), util.SanitizeCredentialURLs(setting.Indexer.RepoConnStr), err)
+				log.Fatal("PID: %d Unable to initialize the repository indexer connstr: %s Error: %v", os.Getpid(), util.SanitizeCredentialURLs(setting.Indexer.RepoConnStr), err)
 			}
 
 		default:

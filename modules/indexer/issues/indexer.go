@@ -18,6 +18,7 @@ import (
 	"code.gitea.io/gitea/modules/indexer/issues/bleve"
 	"code.gitea.io/gitea/modules/indexer/issues/db"
 	"code.gitea.io/gitea/modules/indexer/issues/elasticsearch"
+	"code.gitea.io/gitea/modules/indexer/issues/solr"
 	"code.gitea.io/gitea/modules/indexer/issues/internal"
 	"code.gitea.io/gitea/modules/indexer/issues/meilisearch"
 	"code.gitea.io/gitea/modules/log"
@@ -102,6 +103,12 @@ func InitIssueIndexer(syncReindex bool) {
 			existed, err = issueIndexer.Init(ctx)
 			if err != nil {
 				log.Fatal("Unable to issueIndexer.Init with connection %s Error: %v", util.SanitizeCredentialURLs(setting.Indexer.IssueConnStr), err)
+			}
+		case "solr":
+			issueIndexer = solr.NewIndexer(setting.Indexer.IssueConnStr, setting.Indexer.IssueIndexerName)
+			existed, err = issueIndexer.Init(ctx)
+			if err != nil {
+				log.Fatal("Unable to initialize Solr Issue Indexer with connection %s Error: %v", util.SanitizeCredentialURLs(setting.Indexer.IssueConnStr), err)
 			}
 		case "db":
 			issueIndexer = db.GetIndexer()
